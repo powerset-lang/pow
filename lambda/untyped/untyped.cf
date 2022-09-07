@@ -1,0 +1,16 @@
+-- untyped.cf: Grammar for untyped lambda-calculus
+-- In LBNF for the BNFC parser generator.
+
+token LamLower ( "λ" | "lambda" | "lam" | "\\" );
+
+token Ident ( [a-zA-Z][a-zA-Z_]* );
+
+EVar.   Var ::= Ident
+
+EPars.  Exp ::= "(" Exp ")";
+EAbs.	Exp ::= LamLower Var Exp;
+EVar.   Exp ::= Var;
+EApp.   Exp ::= Exp Exp;
+
+
+
