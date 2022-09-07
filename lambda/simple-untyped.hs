@@ -23,7 +23,9 @@ repl = do
     read <- getLine
     --putStrLn read
     let lexed = lex' Nost read
-    putStrLn (show lexed)
+    putStrLn ("Lexed: " ++ show lexed)
+    let parsed = parse lexed
+    putStrLn ("Parsed: " ++ show parsed)
     repl
 
 data Tok = Lambda
@@ -34,6 +36,11 @@ data Tok = Lambda
     | WS
     | LexError String
     | Direct DirCmd
+    
+    | Lcb -- {
+    | Rcb -- }
+    | Gt -- >
+    
     deriving Show
     
 data DirCmd = Help
@@ -53,6 +60,13 @@ lex' (Directst ds) [] = (lexDirective ds):[]  -- End w directive
 lex' Nost ('.':xs) = Dot:(lex' Nost xs)
 lex' Nost ('(':xs) = Lpar:(lex' Nost xs)
 lex' Nost (')':xs) = Rpar:(lex' Nost xs)
+lex' Nost ('\\':xs) = Lambda:(lex' Nost xs)
+
+-- Temporarily adding 'easy mode' chars
+lex' Nost ('{':xs) = Lcb:(lex' Nost xs) -- Begin scope of abstraction, like \x.{x}
+lex' Nost ('}':xs) = Rcb:(lex' Nost xs) -- End scope of abstraction
+lex' Nost ('>':xs) = Gt:(lex' Nost xs) -- Infix application, like (a > b)
+
 lex' Nost (x:xs)
     | isSpace x = lex' Nost xs
 -- There is a syntactic place for directives, as another kind of expr at toplevel only; done in parser
@@ -81,24 +95,52 @@ lexDirective ds = case ds of
                     "help" -> Direct Help
                     "exit" -> Direct Exit
                     ds -> Direct (Unknown ds)
-    
 
---lexit :: [Char] -> LexResult
 
 
 data Var = MkVar String
     deriving Show
 
-data Term = Var
+data Term = JustVar Var
     | Abs Var Term
     | App Term Term
+    | ParseError String
     deriving Show
-    
---data Name = String
---    deriving Show
 
---parse :: [Term] -> [Tok] -> Term
+data ParseState = ParseNost
+    | ParseLparst
+    deriving Show
 
+parse :: [Tok] -> Term
+parse l = parseh [] [ParseNost] l
+
+parseh :: [Term] -- Stack for intermediate parse trees, "stack"
+            -> [ParseState] -- Stack of parse states, "st"
+            -> [Tok] -- Input token stream, "rem"
+            -> Term -- Resulting tree, "result"
+
+parseh [] [ParseNost] [] = ParseError "Empty input."
+parseh [result] [ParseNost] [] = result
+
+--Parens
+parseh stack st (Lpar : xs) = parseh (parseh [] (ParseLparst:st) xs): stack st [] -- Begin parenthesized expr
+parseh stack (ParseLparst : st) (Rpar : xs) = parseh stack st xs -- End scope of paren
+parseh stack (ParseLparst : st) (Rpar : xs)
+
+--App
+parseh (x:y:ys) st rem = parseh (App y x : ys) st rem -- Pop 2, push app
+
+--Var
+parseh stack st (Ident x : xs) = parseh (JustVar (MkVar x) : stack) st xs -- Push var
+
+--Abs
+parseh [] st (Lambda : Ident x : Dot : xs) 
+    = Abs (MkVar x) (parseh [] st xs)  -- Abstraction is right associative low prec
+    -- That means its scope extends as far to the right as the current scope goes.
     
+parseh stack state rem = ParseError ("Unknown error. "
+                                        ++"Stack: "++(show stack)
+                                        ++", State: "++(show state)
+                                        ++", Remainder: "++(show rem))
 
 
