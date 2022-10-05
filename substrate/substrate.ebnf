@@ -1,0 +1,43 @@
+(* Syntax of Substrate in Extended Backus-Naur Form *)
+(* some modifications to EBNF, some from W3C XML EBNF, wirth EBNF, original Backus-Naur form, and the BNF used from the C reference grammer, maybe ABNF can join the party too *)
+
+-- Starting with C types/declarations:
+-- decl and init always separate
+-- Should init be separate from assignment?
+
+declaration = "(" var-declaration ")"
+            ...?
+
+var-declaration = "decl" "(" type-specifier ")" identifier
+
+type-specifier = "type" linkage storage-duration cv-quant type
+
+linkage = "no-link" | "internal" | "extern"
+
+-- Omit "register", break storage-class into linkage and storage-duration
+storage-duration = "auto" | "static" | "thread" | "allocated"
+
+cv-quant = "const" | "volatile" | "restrict" | "atomic" | "var" --var means no cv-quant
+
+type = atomic-type | "(" compound-type ")"
+
+atomic-type = "int" | "char" | ...
+
+-- fn (arg-decl arg-decl ..) return-type   //what about fns returning qualified type?
+compound-type = "fn" arg-list type | //array...
+
+identifier = named-identifier | anon-identifier
+named-identifier = "$" [a-zA-Z_][a-zA-Z0-9_-]*
+anon-identifier = "$" [0-9]+
+
+{-
+Example:
+const int myInt; // File scope
+(decl (type extern static const int) $myInt)
+
+char myChar; // Function scope
+(decl (type no-link auto var char) $0)
+
+-}
+
+

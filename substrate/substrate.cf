@@ -1,0 +1,20 @@
+-- substrate.cf: Grammar for Substrate, the unified target language.
+-- In LBNF for the BNFC parser generator.
+
+-- Named Identifiers are those whose names are significant.
+-- this is the case when exported/visible externally or free variables.
+token NamedIdentifier ( '$' ( letter | digit | '_' )* );
+
+-- Other idents can be freely alpha-converted. Just numbers
+token AnonIdentifier ( '$' digit ( digit )* );
+
+-- TODO: Should there be sigils for global vs. local like LLVM?
+-- TODO: Should other chars such as '-' be allowed in ident, or Unicode?
+
+
+MkCombination.      Combination ::= "(" ExpList ")";
+
+MkExpList.          ExpList ::= Exp ;
+MkExpList
+
+

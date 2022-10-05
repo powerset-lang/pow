@@ -1,3 +1,5 @@
 dist-newstyle
 push.sh
+*.o
+*.hi
 

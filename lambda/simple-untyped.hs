@@ -107,40 +107,70 @@ data Term = JustVar Var
     | ParseError String
     deriving Show
 
-data ParseState = ParseNost
+
+data ParseState = ParseAbsst
     | ParseLparst
     deriving Show
 
 parse :: [Tok] -> Term
-parse l = parseh [] [ParseNost] l
+parse l = parseh [] [] l
 
 parseh :: [Term] -- Stack for intermediate parse trees, "stack"
             -> [ParseState] -- Stack of parse states, "st"
             -> [Tok] -- Input token stream, "rem"
             -> Term -- Resulting tree, "result"
 
-parseh [] [ParseNost] [] = ParseError "Empty input."
-parseh [result] [ParseNost] [] = result
+parseh [] [] [] = ParseError "Empty input."
+parseh [result] [] [] = result
+
+--Abs
+parseh stack st (Lambda : Ident x : Dot : xs) 
+    = parseh (JustVar (MkVar x) : stack) (ParseAbsst : st) xs -- Push the var, push abs state
+    
+parseh (JustVar v : [result]) (ParseAbsst : st) xs = parseh (Abs v result :[]) st xs
+    -- = (Abs (MkVar x) (parseh [] st xs)  -- Abstraction is right associative low prec
+    -- That means its scope extends as far to the right as the current scope goes.
 
 --Parens
-parseh stack st (Lpar : xs) = parseh (parseh [] (ParseLparst:st) xs): stack st [] -- Begin parenthesized expr
-parseh stack (ParseLparst : st) (Rpar : xs) = parseh stack st xs -- End scope of paren
-parseh stack (ParseLparst : st) (Rpar : xs)
-
---App
-parseh (x:y:ys) st rem = parseh (App y x : ys) st rem -- Pop 2, push app
+parseh stack st (Lpar : xs) = parseh stack (ParseLparst : st) xs -- Push lpar state
+parseh stack (ParseLparst : st) (Rpar : xs) = parseh stack st xs -- Pop par state
+--parseh stack st (Lpar : xs) = parseh (parseh [] (ParseLparst:st) xs): stack st [] -- Begin parenthesized expr
+--parseh stack (ParseLparst : st) (Rpar : xs) = parseh stack st xs -- End scope of paren
 
 --Var
 parseh stack st (Ident x : xs) = parseh (JustVar (MkVar x) : stack) st xs -- Push var
 
---Abs
-parseh [] st (Lambda : Ident x : Dot : xs) 
-    = Abs (MkVar x) (parseh [] st xs)  -- Abstraction is right associative low prec
-    -- That means its scope extends as far to the right as the current scope goes.
-    
+--App
+parseh (x:y:ys) st rem = parseh ((App y x) : ys) st rem -- Pop 2, push app
+
+-- End up here if can't make progress.
 parseh stack state rem = ParseError ("Unknown error. "
                                         ++"Stack: "++(show stack)
                                         ++", State: "++(show state)
                                         ++", Remainder: "++(show rem))
+
+
+{-
+parse :: [Tok] -> Term
+parse l = parseSwitcher [] l
+
+parseSwitcher :: [Term] -> [Tok] -> Term
+parseSwitcher [result] [] = result
+parseSwitcher [] [] = ParseError "Empty input."
+
+parseSwitcher stack (Lpar : xs) = let (t, ts) = parseParen [] xs
+                                    in parseSwitcher (t : stack) ts
+
+-- Default
+parseSwitcher stack rem = ParseError ("Unknown error. "
+                                        ++"Stack: "++(show stack)
+                                        ++", Remainder: "++(show rem))
+
+
+parseParen [result] (Rpar : xs) = (result, xs)
+parseParen stack rem = let t = parseSwitcher [] rem
+                        in t, []
+-}
+
 
 
